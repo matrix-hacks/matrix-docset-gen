@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { cd, exec } = require('shelljs');
+const args = require('minimist')(process.argv);
+
+const PROJECTS = {
+  'matrix-js-sdk': {
+    gitUrl: 'https://github.com/matrix-org/matrix-js-sdk',
+    docset: {
+      name: 'MatrixJSSDK',
+      icon: 'icon.png'
+    }
+  },
+  'matrix-appservice-bridge': {}
+}
+
+const project = PROJECTS[args.project];
+
+if (!project) {
+  console.error(`Usage: matrix-docset-gen --project PROJECT`);
+  console.log(`Supported projects:\n\t`+Object.keys(PROJECTS).join('\n\t'));
+  process.exit(1);
+}
+
+const { gitUrl, docset } = project;
+
+const basename = path.basename(gitUrl);
+
+const dir = path.join('projects', basename);
+const dest = path.join('docsets', basename);
+const tmpl = path.resolve(path.join('node_modules', 'jsdoc-dash-template'));
+
+if (fs.existsSync(dir)){
+  cd(dir);
+  exec(`git pull origin master`);
+} else {
+  exec(`git clone ${gitUrl} ${dir}`);
+  cd(dir);
+}
+
+exec(`jsdoc -r lib -P package.json -R README.md -d ${dest} -t ${tmpl} --pedantic`);
