@@ -1,49 +1,25 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
-const { cd, mv, exec } = require('shelljs');
+const { PROJECTS, gen } = require('..');
 const args = require('minimist')(process.argv);
-const PROJECTS = {
-  'matrix-js-sdk': {
-    gitUrl: 'https://github.com/matrix-org/matrix-js-sdk',
-    docset: {
-      name: 'MatrixJSSDK',
-      icon: path.join(__dirname, '..', 'icon.png')
-    }
-  },
-  'matrix-appservice-bridge': {}
-}
 
-const project = PROJECTS[args.gen];
-
-if (!project) {
-  console.error(`Usage: matrix-docset-gen --project PROJECT`);
+const help = () => {
+  console.error(`Usage: matrix-docset-gen (--all | --project PROJECT) [--branch BRANCH]`);
   console.log(`Supported projects:\n\t`+Object.keys(PROJECTS).join('\n\t'));
   process.exit(1);
 }
 
-const { gitUrl, docset } = project;
-const basename = path.basename(gitUrl);
-const dir = path.resolve(path.join('projects', basename));
-const dest = path.resolve(path.join('docsets', basename));
-const tmpl = path.resolve(path.join('node_modules', 'jsdoc-dash-template'));
-const yarn = path.resolve(path.join('node_modules', '.bin', 'yarn'));
-const cfg = path.join(dir, 'docset-config.json');
-
-if (fs.existsSync(dir)){
-  cd(dir);
-  exec(`git pull origin master`);
+if (args.all) {
+  Object.keys(PROJECTS).map(p=>{
+    const project = PROJECTS[p];
+    gen(project, args.branch);
+  });
+} else if (args.gen) {
+  const project = PROJECTS[args.gen];
+  if (project) {
+    gen(project, args.branch);
+  } else {
+    help();
+  }
 } else {
-  exec(`git clone ${gitUrl} ${dir}`);
-  cd(dir);
+  help();
 }
-
-exec(yarn);
-fs.writeFileSync(cfg, JSON.stringify({ docset }));
-exec(`jsdoc -c ${cfg} -r lib -P package.json -R README.md -d ${dest} -t ${tmpl} --pedantic`);
-
-const { name, version } = require(path.join(dir, 'package'));
-const setroot = path.join(dest, `${docset.name}.docset`);
-const docroot = path.join(setroot, 'Contents', 'Resources', 'Documents');
-const entries = path.join(docroot, name, version, '*');
-mv(entries, docroot);

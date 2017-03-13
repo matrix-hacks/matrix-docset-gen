@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "jsdoc": "^3.4.3",
     "jsdoc-dash-template": "^2.0.1",
     "minimist": "^1.2.0",
     "shelljs": "^0.7.7",
