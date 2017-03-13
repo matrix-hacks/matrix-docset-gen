@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const { cd, exec } = require('shelljs');
+const { cd, mv, exec } = require('shelljs');
 const args = require('minimist')(process.argv);
-
 const PROJECTS = {
   'matrix-js-sdk': {
     gitUrl: 'https://github.com/matrix-org/matrix-js-sdk',
     docset: {
       name: 'MatrixJSSDK',
-      icon: 'icon.png'
+      icon: path.join(__dirname, '..', 'icon.png')
     }
   },
   'matrix-appservice-bridge': {}
 }
 
-const project = PROJECTS[args.project];
+const project = PROJECTS[args.gen];
 
 if (!project) {
   console.error(`Usage: matrix-docset-gen --project PROJECT`);
@@ -24,12 +23,12 @@ if (!project) {
 }
 
 const { gitUrl, docset } = project;
-
 const basename = path.basename(gitUrl);
-
-const dir = path.join('projects', basename);
-const dest = path.join('docsets', basename);
+const dir = path.resolve(path.join('projects', basename));
+const dest = path.resolve(path.join('docsets', basename));
 const tmpl = path.resolve(path.join('node_modules', 'jsdoc-dash-template'));
+const yarn = path.resolve(path.join('node_modules', '.bin', 'yarn'));
+const cfg = path.join(dir, 'docset-config.json');
 
 if (fs.existsSync(dir)){
   cd(dir);
@@ -39,4 +38,12 @@ if (fs.existsSync(dir)){
   cd(dir);
 }
 
-exec(`jsdoc -r lib -P package.json -R README.md -d ${dest} -t ${tmpl} --pedantic`);
+exec(yarn);
+fs.writeFileSync(cfg, JSON.stringify({ docset }));
+exec(`jsdoc -c ${cfg} -r lib -P package.json -R README.md -d ${dest} -t ${tmpl} --pedantic`);
+
+const { name, version } = require(path.join(dir, 'package'));
+const setroot = path.join(dest, `${docset.name}.docset`);
+const docroot = path.join(setroot, 'Contents', 'Resources', 'Documents');
+const entries = path.join(docroot, name, version, '*');
+mv(entries, docroot);
